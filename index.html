@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bảng Điều Khiển Kinh Doanh - Đồng Bộ Hóa</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Be Vietnam Pro', sans-serif;
+            background-color: #f5f3f1;
+            color: #4a4a4a;
+        }
+        .card {
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            transition: all 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+        .nav-btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background-color: #e7e5e4;
+            color: #57534e;
+        }
+        .nav-btn.active {
+            background-color: #d97706;
+            color: white;
+            box-shadow: 0 4px 10px rgba(217, 119, 6, 0.3);
+        }
+        .chart-container {
+            position: relative;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .form-input {
+            width: 100%;
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid #d4d4d8;
+            transition: border-color 0.3s;
+        }
+        .form-input:focus {
+            outline: none;
+            border-color: #d97706;
+        }
+        .submit-btn, .filter-btn {
+            background-color: #16a34a;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: background-color 0.3s;
+        }
+        .submit-btn:hover, .filter-btn:hover {
+            background-color: #15803d;
+        }
+        .secondary-btn {
+            background-color: #64748b;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: background-color 0.3s;
+        }
+        .secondary-btn:hover {
+             background-color: #475569;
+        }
+        /* Custom Modal for notifications and confirms */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+        }
+        .modal-overlay.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+            transform: scale(0.9);
+            transition: transform 0.3s;
+        }
+        .modal-overlay.visible .modal-content {
+            transform: scale(1);
+        }
+        /* Custom Toast Notification */
+        #toast-notification {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #2d3748;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            z-index: 1001;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.5s, transform 0.5s, bottom 0.5s;
+        }
+        #toast-notification.show {
+            opacity: 1;
+            visibility: visible;
+            bottom: 30px;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="container mx-auto p-4 md:p-8">
+        
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-amber-700">Bảng Điều Khiển Kinh Doanh</h1>
+            <p class="text-slate-500 mt-2">2 Quán Bún Cá & 1 Cửa Hàng Sửa Xe (Đồng bộ hóa)</p>
+        </header>
+
+        <div class="card p-2 mb-4 text-center text-sm">
+            <p class="text-slate-600">Trạng thái: <span id="auth-status" class="font-semibold text-red-500">Đang kết nối...</span></p>
+            <p class="text-slate-500">UserID của bạn: <strong id="user-id" class="text-amber-800">Chưa có</strong></p>
+        </div>
+
+        <nav class="flex justify-center flex-wrap gap-2 md:space-x-4 mb-4">
+            <button id="nav-overview" class="nav-btn active">Tổng Quan</button>
+            <button id="nav-quan1" class="nav-btn">Chi Tiết Quán 1</button>
+            <button id="nav-quan2" class="nav-btn">Chi Tiết Quán 2</button>
+            <button id="nav-suaXe" class="nav-btn">Chi Tiết Sửa Xe</button>
+            <button id="nav-input" class="nav-btn">Nhập Liệu</button>
+        </nav>
+        
+        <div class="card p-4 mb-8 flex flex-wrap justify-center items-center gap-4">
+            <label for="month-filter" class="font-medium">Xem báo cáo theo tháng:</label>
+            <input type="month" id="month-filter" class="form-input w-auto">
+            <button id="filter-btn" class="filter-btn">Lọc</button>
+            <button id="all-time-btn" class="secondary-btn">Xem Tất Cả</button>
+        </div>
+
+        <main>
+            <!-- Input Section -->
+            <div id="input-section" class="hidden">
+                 <div class="text-center mb-8">
+                    <h2 class="text-2xl font-semibold text-gray-700">Nhập Dữ Liệu Kinh Doanh</h2>
+                    <p class="text-gray-500">Ghi lại doanh thu và chi phí hàng ngày.</p>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="card p-6">
+                        <h3 class="text-xl font-semibold mb-4">📝 Thêm Doanh Thu</h3>
+                        <form id="sales-form" class="space-y-4">
+                            <div>
+                                <label for="sale-date" class="font-medium">Ngày</label>
+                                <input type="date" id="sale-date" class="form-input mt-1" required>
+                            </div>
+                            <div>
+                                <label for="sale-store" class="font-medium">Cửa hàng</label>
+                                <select id="sale-store" class="form-input mt-1">
+                                    <option value="quan1">Quán Bún Cá 1</option>
+                                    <option value="quan2">Quán Bún Cá 2</option>
+                                    <option value="suaXe">Sửa Xe Máy</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="sale-item" class="font-medium">Nội dung thu</label>
+                                <input type="text" id="sale-item" class="form-input mt-1" placeholder="VD: Bún cá / Thay dầu xe 29-H1-12345" required>
+                                <p class="text-xs text-gray-500 mt-1">Với cửa hàng sửa xe, vui lòng nhập cả biển số xe để tra cứu lịch sử.</p>
+                            </div>
+                            <div>
+                                <label for="sale-qty" class="font-medium">Số lượng</label>
+                                <input type="number" id="sale-qty" class="form-input mt-1" min="1" value="1" required>
+                            </div>
+                             <div>
+                                <label for="sale-price" class="font-medium">Đơn giá / Thành tiền</label>
+                                <input type="number" id="sale-price" class="form-input mt-1" min="0" placeholder="VD: 35000" required>
+                            </div>
+                            <button type="submit" class="submit-btn w-full">Thêm Doanh Thu</button>
+                        </form>
+                    </div>
+                     <div class="card p-6">
+                        <h3 class="text-xl font-semibold mb-4">💸 Thêm Chi Phí</h3>
+                        <form id="costs-form" class="space-y-4">
+                            <div>
+                                <label for="cost-date" class="font-medium">Ngày</label>
+                                <input type="date" id="cost-date" class="form-input mt-1" required>
+                            </div>
+                            <div>
+                                <label for="cost-store" class="font-medium">Cửa hàng</label>
+                                <select id="cost-store" class="form-input mt-1">
+                                    <option value="quan1">Quán Bún Cá 1</option>
+                                    <option value="quan2">Quán Bún Cá 2</option>
+                                    <option value="suaXe">Sửa Xe Máy</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="cost-item" class="font-medium">Nội dung chi</label>
+                                <input type="text" id="cost-item" class="form-input mt-1" placeholder="VD: Tiền điện / Nhập phụ tùng" required>
+                            </div>
+                            <div>
+                                <label for="cost-amount" class="font-medium">Số tiền</label>
+                                <input type="number" id="cost-amount" class="form-input mt-1" min="0" required>
+                            </div>
+                            <button type="submit" class="submit-btn w-full">Thêm Chi Phí</button>
+                        </form>
+                    </div>
+                </div>
+                 <div class="text-center mt-8">
+                    <button id="clear-data-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition">
+                        Xoá Toàn Bộ Dữ Liệu
+                    </button>
+                </div>
+            </div>
+
+            <!-- Data Display Sections -->
+            <div id="data-display-sections">
+                 <div id="overview-section">
+                    <div class="text-center mb-8">
+                        <h2 id="overview-title" class="text-2xl font-semibold text-gray-700"></h2>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        <div class="card p-6 flex flex-col items-center justify-center text-center"><h3 class="text-lg font-medium text-slate-500">Tổng Doanh Thu</h3><p id="total-revenue" class="text-3xl font-bold text-green-600 mt-2">0 ₫</p></div>
+                        <div class="card p-6 flex flex-col items-center justify-center text-center"><h3 class="text-lg font-medium text-slate-500">Tổng Chi Phí</h3><p id="total-cost" class="text-3xl font-bold text-red-600 mt-2">0 ₫</p></div>
+                        <div class="card p-6 flex flex-col items-center justify-center text-center"><h3 class="text-lg font-medium text-slate-500">Tổng Lợi Nhuận</h3><p id="total-profit" class="text-3xl font-bold text-blue-600 mt-2">0 ₫</p></div>
+                    </div>
+                    <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                        <div class="card p-6 lg:col-span-3"><h3 class="text-xl font-semibold text-center mb-4">So Sánh Hoạt Động Kinh Doanh</h3><div class="chart-container h-80 md:h-96 w-full max-w-2xl"><canvas id="comparisonChart"></canvas></div></div>
+                        <div class="card p-6 lg:col-span-2"><h3 class="text-xl font-semibold text-center mb-4">Cơ Cấu Chi Phí</h3><div class="chart-container h-80 md:h-96 w-full max-w-sm"><canvas id="costStructureChart"></canvas></div></div>
+                    </div>
+                </div>
+
+                <div id="quan1-section" class="hidden">
+                    <div class="text-center mb-8"><h2 id="quan1-title" class="text-2xl font-semibold text-gray-700"></h2></div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        <div class="card p-6 flex flex-col items-center justify-center text-center"><h3 class="text-lg font-medium text-slate-500">Doanh Thu</h3><p id="quan1-revenue-card" class="text-3xl font-bold text-green-600 mt-2">0 ₫</p></div>
+                        <div class="card p-6 flex flex-col items-center justify-center text-center"><h3 class="text-lg font-medium text-slate-500">Chi Phí</h3><p id="quan1-cost-card" class="text-3xl font-bold text-red-600 mt-2">0 ₫</p></div>
+                        <div class="card p-6 flex flex-col items-center justify-center text-center"><h3 class="text-lg font-medium text-slate-500">Lợi Nhuận</h3><p id="quan1-profit-card" class="text-3xl font-bold text-blue-600 mt-2">0 ₫</p></div>
+                    </div>
+                    <div class="card p-6 mb-8"><h3 class="text-xl font-semibold text-center mb-4">Xu Hướng Kinh Doanh</h3><div class="chart-container h-80 md:h-96 w-full max-w-4xl"><canvas id="quan1TrendChart"></canvas></div></div>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6"><div class="card p-6"><h3 class="text-xl font-semibold mb-4">Thống Kê Bán Hàng</h3><div class="overflow-y-auto max-h-96"><table class="w-full text-left"><thead class="bg-slate-100 sticky top-0"><tr><th class="p-3">Ngày</th><th class="p-3">Nội dung</th><th class="p-3 text-right">SL</th><th class="p-3 text-right">Thành Tiền</th></tr></thead><tbody id="quan1-sales-table"></tbody></table></div></div><div class="card p-6"><h3 class="text-xl font-semibold mb-4">Thống Kê Chi Phí</h3><div class="overflow-y-auto max-h-96"><table class="w-full text-left"><thead class="bg-slate-100 sticky top-0"><tr><th class="p-3">Ngày</th><th class="p-3">Nội Dung</th><th class="p-3 text-right">Số Tiền</th></tr></thead><tbody id="quan1-costs-table"></tbody></table></div></div></div>
+                </div>
+
+                <div id="quan2-section" class="hidden">
+                    <div class="text-center mb-8"><h2 id="quan2-title" class="text-2xl font-semibold text-gray-700"></h2></div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        <div class="card p-6 flex flex-col items-center justify-center text-center"><h3 class="text-lg font-medium text-slate-500">Doanh Thu</h3><p id="quan2-revenue-card" class="text-3xl font-bold text-green-600 mt-2">0 ₫</p></div>
+                        <div class="card p-6 flex flex-col items-center justify-center text-center"><h3 class="text-lg font-medium text-slate-500">Chi Phí</h3><p id="quan2-cost-card" class="text-3xl font-bold text-red-600 mt-2">0 ₫</p></div>
+                        <div class="card p-6 flex flex-col items-center justify-center text-center"><h3 class="text-lg font-medium text-slate-500">Lợi Nhuận</h3><p id="quan2-profit-card" class="text-3xl font-bold text-blue-600 mt-2">0 ₫</p></div>
+                    </div>
+                    <div class="card p-6 mb-8"><h3 class="text-xl font-semibold text-center mb-4">Xu Hướng Kinh Doanh</h3><div class="chart-container h-80 md:h-96 w-full max-w-4xl"><canvas id="quan2TrendChart"></canvas></div></div>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6"><div class="card p-6"><h3 class="text-xl font-semibold mb-4">Thống Kê Bán Hàng</h3><div class="overflow-y-auto max-h-96"><table class="w-full text-left"><thead class="bg-slate-100 sticky top-0"><tr><th class="p-3">Ngày</th><th class="p-3">Nội dung</th><th class="p-3 text-right">SL</th><th class="p-3 text-right">Thành Tiền</th></tr></thead><tbody id="quan2-sales-table"></tbody></table></div></div><div class="card p-6"><h3 class="text-xl font-semibold mb-4">Thống Kê Chi Phí</h3><div class="overflow-y-auto max-h-96"><table class="w-full text-left"><thead class="bg-slate-100 sticky top-0"><tr><th class="p-3">Ngày</th><th class="p-3">Nội Dung</th><th class="p-3 text-right">Số Tiền</th></tr></thead><tbody id="quan2-costs-table"></tbody></table></div></div></div>
+                </div>
+
+                <div id="suaXe-section" class="hidden">
+                    <div class="text-center mb-8"><h2 id="suaXe-title" class="text-2xl font-semibold text-gray-700"></h2></div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        <div class="card p-6 flex flex-col items-center justify-center text-center"><h3 class="text-lg font-medium text-slate-500">Doanh Thu</h3><p id="suaXe-revenue-card" class="text-3xl font-bold text-green-600 mt-2">0 ₫</p></div>
+                        <div class="card p-6 flex flex-col items-center justify-center text-center"><h3 class="text-lg font-medium text-slate-500">Chi Phí</h3><p id="suaXe-cost-card" class="text-3xl font-bold text-red-600 mt-2">0 ₫</p></div>
+                        <div class="card p-6 flex flex-col items-center justify-center text-center"><h3 class="text-lg font-medium text-slate-500">Lợi Nhuận</h3><p id="suaXe-profit-card" class="text-3xl font-bold text-blue-600 mt-2">0 ₫</p></div>
+                    </div>
+                    <div class="card p-6 mb-8"><h3 class="text-xl font-semibold text-center mb-4">Xu Hướng Kinh Doanh</h3><div class="chart-container h-80 md:h-96 w-full max-w-4xl"><canvas id="suaXeTrendChart"></canvas></div></div>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="card p-6">
+                            <h3 class="text-xl font-semibold mb-4">Thống Kê Doanh Thu</h3>
+                            <div class="flex gap-2 mb-4">
+                                <input type="text" id="suaXe-search-input" class="form-input flex-grow" placeholder="Tìm theo biển số xe...">
+                                <button id="suaXe-search-btn" class="filter-btn">Tìm</button>
+                            </div>
+                            <div class="overflow-y-auto max-h-80"><table class="w-full text-left"><thead class="bg-slate-100 sticky top-0"><tr><th class="p-3">Ngày</th><th class="p-3">Nội dung</th><th class="p-3 text-right">Thành Tiền</th><th class="p-3 text-right">Xóa</th></tr></thead><tbody id="suaXe-sales-table"></tbody></table></div>
+                        </div>
+                        <div class="card p-6"><h3 class="text-xl font-semibold mb-4">Thống Kê Chi Phí</h3><div class="overflow-y-auto max-h-96"><table class="w-full text-left"><thead class="bg-slate-100 sticky top-0"><tr><th class="p-3">Ngày</th><th class="p-3">Nội Dung</th><th class="p-3 text-right">Số Tiền</th><th class="p-3 text-right">Xóa</th></tr></thead><tbody id="suaXe-costs-table"></tbody></table></div></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast-notification"></div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirmation-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 id="modal-title" class="text-xl font-bold mb-4">Xác nhận hành động</h3>
+            <p id="modal-message" class="text-gray-600 mb-6">Bạn có chắc chắn muốn thực hiện hành động này?</p>
+            <div class="flex justify-center gap-4">
+                <button id="modal-confirm-btn" class="submit-btn bg-red-600 hover:bg-red-700">Xác nhận</button>
+                <button id="modal-cancel-btn" class="secondary-btn">Hủy bỏ</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Import Firebase modules
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, addDoc, getDocs, deleteDoc, onSnapshot, query, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            // --- CONFIG & INITIALIZATION ---
+            const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { apiKey: "YOUR_API_KEY", authDomain: "YOUR_AUTH_DOMAIN", projectId: "YOUR_PROJECT_ID" };
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+            const app = initializeApp(firebaseConfig);
+            const auth = getAuth(app);
+            const db = getFirestore(app);
+
+            let userId = null;
+            let salesUnsubscribe = () => {};
+            let costsUnsubscribe = () => {};
+            
+            let fullData = { sales: [], costs: [] };
+            let currentFilter = null;
+            let currentView = 'overview';
+            const charts = {};
+
+            // --- UI HELPER FUNCTIONS ---
+            const formatCurrency = (value) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
+            
+            const showToast = (message) => {
+                const toast = document.getElementById('toast-notification');
+                toast.textContent = message;
+                toast.classList.add('show');
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                }, 3000);
+            };
+
+            const showConfirmationModal = (title, message, onConfirm) => {
+                document.getElementById('modal-title').textContent = title;
+                document.getElementById('modal-message').textContent = message;
+                const modal = document.getElementById('confirmation-modal');
+                modal.classList.add('visible');
+
+                const confirmBtn = document.getElementById('modal-confirm-btn');
+                const cancelBtn = document.getElementById('modal-cancel-btn');
+
+                const cleanup = () => {
+                    modal.classList.remove('visible');
+                    confirmBtn.replaceWith(confirmBtn.cloneNode(true)); // Remove event listener
+                    cancelBtn.replaceWith(cancelBtn.cloneNode(true));
+                };
+
+                confirmBtn.onclick = () => {
+                    onConfirm();
+                    cleanup();
+                };
+                cancelBtn.onclick = cleanup;
+            };
+
+            // --- FIREBASE AUTHENTICATION ---
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    userId = user.uid;
+                    document.getElementById('auth-status').textContent = 'Đã kết nối';
+                    document.getElementById('auth-status').className = 'font-semibold text-green-600';
+                    document.getElementById('user-id').textContent = userId;
+                    
+                    // Detach old listeners and attach new ones for the new user
+                    salesUnsubscribe();
+                    costsUnsubscribe();
+                    attachRealtimeListeners();
+                } else {
+                    userId = null;
+                    document.getElementById('auth-status').textContent = 'Chưa kết nối';
+                    document.getElementById('auth-status').className = 'font-semibold text-red-500';
+                    document.getElementById('user-id').textContent = 'Chưa có';
+                    fullData = { sales: [], costs: [] };
+                    updateDashboard();
+                }
+            });
+
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Authentication Error:", error);
+                document.getElementById('auth-status').textContent = 'Lỗi kết nối';
+            }
+
+            // --- DATA HANDLING (FIRESTORE) ---
+            function attachRealtimeListeners() {
+                if (!userId) return;
+
+                const salesCollectionPath = `/artifacts/${appId}/users/${userId}/sales`;
+                const costsCollectionPath = `/artifacts/${appId}/users/${userId}/costs`;
+
+                // Listener for sales data
+                const salesQuery = query(collection(db, salesCollectionPath));
+                salesUnsubscribe = onSnapshot(salesQuery, (querySnapshot) => {
+                    fullData.sales = [];
+                    querySnapshot.forEach((doc) => {
+                        fullData.sales.push({ id: doc.id, ...doc.data() });
+                    });
+                    updateDashboard();
+                }, (error) => console.error("Error listening to sales:", error));
+
+                // Listener for costs data
+                const costsQuery = query(collection(db, costsCollectionPath));
+                costsUnsubscribe = onSnapshot(costsQuery, (querySnapshot) => {
+                    fullData.costs = [];
+                    querySnapshot.forEach((doc) => {
+                        fullData.costs.push({ id: doc.id, ...doc.data() });
+                    });
+                    updateDashboard();
+                }, (error) => console.error("Error listening to costs:", error));
+            }
+
+            // --- CORE APPLICATION LOGIC ---
+            function destroyAllCharts() {
+                Object.values(charts).forEach(chart => {
+                    if (chart && typeof chart.destroy === 'function') chart.destroy();
+                });
+            }
+            
+            function updateDashboard() {
+                if (!document.getElementById('data-display-sections').offsetParent) {
+                    // Don't render if the display section is hidden
+                    return;
+                }
+                destroyAllCharts();
+                
+                let filteredData = { sales: [], costs: [] };
+                let titlePeriod = "Toàn Thời Gian";
+
+                if (currentFilter) {
+                    const [year, month] = currentFilter.split('-');
+                    titlePeriod = `Tháng ${month}/${year}`;
+                    filteredData.sales = fullData.sales.filter(s => s.date.startsWith(currentFilter));
+                    filteredData.costs = fullData.costs.filter(c => c.date.startsWith(currentFilter));
+                } else {
+                    filteredData = JSON.parse(JSON.stringify(fullData));
+                }
+                
+                document.getElementById('overview-title').textContent = `Tổng Quan ${titlePeriod}`;
+                document.getElementById('quan1-title').textContent = `Chi Tiết Hoạt Động Quán Bún Cá 1 (${titlePeriod})`;
+                document.getElementById('quan2-title').textContent = `Chi Tiết Hoạt Động Quán Bún Cá 2 (${titlePeriod})`;
+                document.getElementById('suaXe-title').textContent = `Chi Tiết Hoạt Động Sửa Xe Máy (${titlePeriod})`;
+
+                const totals = {
+                    quan1: { revenue: 0, cost: 0, profit: 0 },
+                    quan2: { revenue: 0, cost: 0, profit: 0 },
+                    suaXe: { revenue: 0, cost: 0, profit: 0 }
+                };
+
+                filteredData.sales.forEach(s => {
+                    if(totals[s.store]) totals[s.store].revenue += s.qty * s.price;
+                });
+                filteredData.costs.forEach(c => {
+                    if(totals[c.store]) totals[c.store].cost += c.amount;
+                });
+
+                Object.keys(totals).forEach(storeId => {
+                    totals[storeId].profit = totals[storeId].revenue - totals[storeId].cost;
+                });
+                
+                const totalRevenue = totals.quan1.revenue + totals.quan2.revenue + totals.suaXe.revenue;
+                const totalCost = totals.quan1.cost + totals.quan2.cost + totals.suaXe.cost;
+                const totalProfit = totalRevenue - totalCost;
+                
+                document.getElementById('total-revenue').textContent = formatCurrency(totalRevenue);
+                document.getElementById('total-cost').textContent = formatCurrency(totalCost);
+                document.getElementById('total-profit').textContent = formatCurrency(totalProfit);
+                
+                document.getElementById('quan1-revenue-card').textContent = formatCurrency(totals.quan1.revenue);
+                document.getElementById('quan1-cost-card').textContent = formatCurrency(totals.quan1.cost);
+                document.getElementById('quan1-profit-card').textContent = formatCurrency(totals.quan1.profit);
+
+                document.getElementById('quan2-revenue-card').textContent = formatCurrency(totals.quan2.revenue);
+                document.getElementById('quan2-cost-card').textContent = formatCurrency(totals.quan2.cost);
+                document.getElementById('quan2-profit-card').textContent = formatCurrency(totals.quan2.profit);
+
+                document.getElementById('suaXe-revenue-card').textContent = formatCurrency(totals.suaXe.revenue);
+                document.getElementById('suaXe-cost-card').textContent = formatCurrency(totals.suaXe.cost);
+                document.getElementById('suaXe-profit-card').textContent = formatCurrency(totals.suaXe.profit);
+
+                createOverviewCharts(totals);
+                createStoreDetails('quan1', filteredData);
+                createStoreDetails('quan2', filteredData);
+                createStoreDetails('suaXe', filteredData);
+            }
+
+            function createOverviewCharts(totals) {
+                const comparisonCtx = document.getElementById('comparisonChart').getContext('2d');
+                charts.comparison = new Chart(comparisonCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Quán Bún Cá 1', 'Quán Bún Cá 2', 'Sửa Xe Máy'],
+                        datasets: [
+                            { label: 'Doanh Thu', data: [totals.quan1.revenue, totals.quan2.revenue, totals.suaXe.revenue], backgroundColor: 'rgba(52, 211, 153, 0.7)' },
+                            { label: 'Lợi Nhuận', data: [totals.quan1.profit, totals.quan2.profit, totals.suaXe.profit], backgroundColor: 'rgba(59, 130, 246, 0.7)' }
+                        ]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { callback: (value) => formatCurrency(value) } } }, plugins: { tooltip: { callbacks: { label: (context) => `${context.dataset.label}: ${formatCurrency(context.raw)}` } } } }
+                });
+
+                const costStructureCtx = document.getElementById('costStructureChart').getContext('2d');
+                charts.costStructure = new Chart(costStructureCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Chi Phí Quán 1', 'Chi Phí Quán 2', 'Chi Phí Sửa Xe'],
+                        datasets: [{ data: [totals.quan1.cost, totals.quan2.cost, totals.suaXe.cost], backgroundColor: ['rgba(251, 146, 60, 0.8)', 'rgba(248, 113, 113, 0.8)', 'rgba(168, 85, 247, 0.7)'] }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { tooltip: { callbacks: { label: (context) => `${context.label}: ${formatCurrency(context.raw)}` } } } }
+                });
+            }
+            
+            function createStoreDetails(storeId, data) {
+                 const dailyData = {};
+                data.sales.filter(s => s.store === storeId).forEach(s => {
+                    if (!dailyData[s.date]) dailyData[s.date] = { revenue: 0, cost: 0 };
+                    dailyData[s.date].revenue += s.qty * s.price;
+                });
+                data.costs.filter(c => c.store === storeId).forEach(c => {
+                    if (!dailyData[c.date]) dailyData[c.date] = { revenue: 0, cost: 0 };
+                    dailyData[c.date].cost += c.amount;
+                });
+
+                const sortedDates = Object.keys(dailyData).sort((a,b) => new Date(a) - new Date(b));
+                const trendData = {
+                    labels: sortedDates,
+                    revenues: sortedDates.map(date => dailyData[date].revenue),
+                    profits: sortedDates.map(date => dailyData[date].revenue - dailyData[date].cost)
+                };
+
+                const trendCtx = document.getElementById(`${storeId}TrendChart`).getContext('2d');
+                charts[`${storeId}Trend`] = new Chart(trendCtx, {
+                    type: 'line',
+                    data: {
+                        labels: trendData.labels,
+                        datasets: [
+                            { label: 'Doanh Thu', data: trendData.revenues, borderColor: 'rgba(5, 150, 105, 1)', tension: 0.1 },
+                            { label: 'Lợi Nhuận', data: trendData.profits, borderColor: 'rgba(37, 99, 235, 1)', tension: 0.1 }
+                        ]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, scales: { x: { type: 'time', time: { unit: 'day', tooltipFormat: 'dd/MM/yyyy' } }, y: { beginAtZero: true, ticks: { callback: (value) => formatCurrency(value) } } }, plugins: { tooltip: { callbacks: { label: (context) => `${context.dataset.label}: ${formatCurrency(context.raw)}` } } } }
+                });
+
+                // Populate tables
+                populateTable(`${storeId}-sales-table`, data.sales, storeId);
+                populateTable(`${storeId}-costs-table`, data.costs, storeId);
+            }
+
+            function populateTable(tableId, data, storeId) {
+                const tableBody = document.getElementById(tableId);
+                tableBody.innerHTML = '';
+                let tableData = data.filter(item => item.store === storeId);
+
+                if (storeId === 'suaXe' && tableId.includes('sales')) {
+                    const searchQuery = document.getElementById('suaXe-search-input').value.toLowerCase();
+                    if (searchQuery) {
+                        tableData = tableData.filter(s => s.name.toLowerCase().includes(searchQuery));
+                    }
+                }
+
+                tableData.sort((a, b) => new Date(b.date) - new Date(a.date));
+                
+                tableData.forEach(item => {
+                    const row = document.createElement('tr');
+                    const deleteBtnHtml = `<button data-id="${item.id}" class="text-red-500 hover:text-red-700 p-1">✖</button>`;
+
+                    if (tableId.includes('sales')) {
+                        const total = item.qty * item.price;
+                        if (storeId === 'suaXe') {
+                            row.innerHTML = `<td class="p-3">${item.date}</td><td class="p-3">${item.name}</td><td class="p-3 text-right font-medium">${formatCurrency(total)}</td><td class="p-3 text-right">${deleteBtnHtml}</td>`;
+                        } else {
+                            row.innerHTML = `<td class="p-3">${item.date}</td><td class="p-3">${item.name}</td><td class="p-3 text-right">${item.qty}</td><td class="p-3 text-right font-medium">${formatCurrency(total)}</td>`;
+                        }
+                    } else { // costs
+                        row.innerHTML = `<td class="p-3">${item.date}</td><td class="p-3">${item.name}</td><td class="p-3 text-right font-medium">${formatCurrency(item.amount)}</td><td class="p-3 text-right">${deleteBtnHtml}</td>`;
+                    }
+                    tableBody.appendChild(row);
+                });
+            }
+
+            // --- EVENT LISTENERS ---
+            const sections = {
+                overview: document.getElementById('overview-section'),
+                quan1: document.getElementById('quan1-section'),
+                quan2: document.getElementById('quan2-section'),
+                suaXe: document.getElementById('suaXe-section'),
+                input: document.getElementById('input-section'),
+                display: document.getElementById('data-display-sections')
+            };
+            const navButtons = {
+                overview: document.getElementById('nav-overview'),
+                quan1: document.getElementById('nav-quan1'),
+                quan2: document.getElementById('nav-quan2'),
+                suaXe: document.getElementById('nav-suaXe'),
+                input: document.getElementById('nav-input')
+            };
+
+            function showSection(sectionId) {
+                currentView = sectionId;
+                Object.values(navButtons).forEach(button => button.classList.remove('active'));
+                navButtons[sectionId].classList.add('active');
+
+                if (sectionId === 'input') {
+                    sections.input.classList.remove('hidden');
+                    sections.display.classList.add('hidden');
+                } else {
+                    sections.input.classList.add('hidden');
+                    sections.display.classList.remove('hidden');
+                    Object.keys(sections).forEach(key => {
+                        if (key !== 'input' && key !== 'display') {
+                            sections[key].classList.toggle('hidden', key !== sectionId);
+                        }
+                    });
+                    updateDashboard();
+                }
+            }
+
+            Object.keys(navButtons).forEach(id => {
+                navButtons[id].addEventListener('click', () => showSection(id));
+            });
+
+            document.getElementById('sales-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                if (!userId) {
+                    showToast("Lỗi: Người dùng chưa được xác thực.");
+                    return;
+                }
+                const newSale = {
+                    date: document.getElementById('sale-date').value,
+                    store: document.getElementById('sale-store').value,
+                    name: document.getElementById('sale-item').value.trim(),
+                    qty: parseInt(document.getElementById('sale-qty').value),
+                    price: parseFloat(document.getElementById('sale-price').value)
+                };
+                try {
+                    await addDoc(collection(db, `/artifacts/${appId}/users/${userId}/sales`), newSale);
+                    showToast('Đã thêm doanh thu thành công!');
+                    e.target.reset();
+                    document.getElementById('sale-date').value = new Date().toISOString().split('T')[0];
+                } catch (error) {
+                    console.error("Error adding sale:", error);
+                    showToast("Thêm doanh thu thất bại. Vui lòng thử lại.");
+                }
+            });
+
+            document.getElementById('costs-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                if (!userId) {
+                    showToast("Lỗi: Người dùng chưa được xác thực.");
+                    return;
+                }
+                const newCost = {
+                    date: document.getElementById('cost-date').value,
+                    store: document.getElementById('cost-store').value,
+                    name: document.getElementById('cost-item').value.trim(),
+                    amount: parseFloat(document.getElementById('cost-amount').value)
+                };
+                 try {
+                    await addDoc(collection(db, `/artifacts/${appId}/users/${userId}/costs`), newCost);
+                    showToast('Đã thêm chi phí thành công!');
+                    e.target.reset();
+                    document.getElementById('cost-date').value = new Date().toISOString().split('T')[0];
+                } catch (error) {
+                    console.error("Error adding cost:", error);
+                    showToast("Thêm chi phí thất bại. Vui lòng thử lại.");
+                }
+            });
+            
+            document.getElementById('clear-data-btn').addEventListener('click', () => {
+                showConfirmationModal(
+                    'Xoá Toàn Bộ Dữ Liệu?',
+                    'Hành động này không thể hoàn tác và sẽ xoá vĩnh viễn tất cả doanh thu và chi phí của bạn.',
+                    async () => {
+                        if (!userId) {
+                            showToast("Lỗi: Không thể xoá dữ liệu.");
+                            return;
+                        }
+                        try {
+                            const salesRef = collection(db, `/artifacts/${appId}/users/${userId}/sales`);
+                            const costsRef = collection(db, `/artifacts/${appId}/users/${userId}/costs`);
+
+                            const batch = writeBatch(db);
+                            const salesSnapshot = await getDocs(salesRef);
+                            salesSnapshot.forEach(doc => batch.delete(doc.ref));
+                            const costsSnapshot = await getDocs(costsRef);
+                            costsSnapshot.forEach(doc => batch.delete(doc.ref));
+
+                            await batch.commit();
+
+                            currentFilter = null;
+                            document.getElementById('month-filter').value = '';
+                            showToast('Đã xoá toàn bộ dữ liệu thành công.');
+                            // Realtime listener will auto-update the UI
+                        } catch (error) {
+                            console.error("Error clearing data:", error);
+                            showToast("Xoá dữ liệu thất bại.");
+                        }
+                    }
+                );
+            });
+
+            document.getElementById('data-display-sections').addEventListener('click', async (e) => {
+                if (e.target && e.target.matches('button[data-id]')) {
+                    const id = e.target.getAttribute('data-id');
+                    const row = e.target.closest('tr');
+                    const table = e.target.closest('table');
+                    const isSales = table.id.includes('sales');
+                    const collectionName = isSales ? 'sales' : 'costs';
+
+                    showConfirmationModal(
+                        'Xác nhận xoá?',
+                        'Bạn có chắc muốn xoá mục này không?',
+                        async () => {
+                            try {
+                                await deleteDoc(doc(db, `/artifacts/${appId}/users/${userId}/${collectionName}`, id));
+                                showToast('Đã xoá mục thành công.');
+                                // UI will update automatically via onSnapshot
+                            } catch (error) {
+                                console.error("Error deleting document:", error);
+                                showToast('Xoá mục thất bại.');
+                            }
+                        }
+                    );
+                }
+            });
+            
+            document.getElementById('filter-btn').addEventListener('click', () => {
+                const filterValue = document.getElementById('month-filter').value;
+                currentFilter = filterValue || null;
+                updateDashboard();
+            });
+
+            document.getElementById('all-time-btn').addEventListener('click', () => {
+                currentFilter = null;
+                document.getElementById('month-filter').value = '';
+                updateDashboard();
+            });
+            
+            document.getElementById('suaXe-search-btn').addEventListener('click', () => {
+                updateDashboard();
+            });
+            document.getElementById('suaXe-search-input').addEventListener('keyup', (e) => {
+                if (e.key === 'Enter') {
+                    updateDashboard();
+                }
+            });
+
+            // --- INITIAL LOAD ---
+            document.getElementById('sale-date').value = new Date().toISOString().split('T')[0];
+            document.getElementById('cost-date').value = new Date().toISOString().split('T')[0];
+            showSection('overview');
+        });
+    </script>
+</body>
+</html>

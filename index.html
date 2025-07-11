@@ -57,7 +57,7 @@
             outline: none;
             border-color: #d97706;
         }
-        .submit-btn, .filter-btn {
+        .submit-btn, .filter-btn, .action-btn {
             background-color: #16a34a;
             color: white;
             padding: 10px 15px;
@@ -65,7 +65,7 @@
             font-weight: 500;
             transition: background-color 0.3s;
         }
-        .submit-btn:hover, .filter-btn:hover {
+        .submit-btn:hover, .filter-btn:hover, .action-btn:hover {
             background-color: #15803d;
         }
         .secondary-btn {
@@ -79,19 +79,19 @@
         .secondary-btn:hover {
              background-color: #475569;
         }
-        .delete-btn {
+        .delete-btn, .edit-btn {
             background: none;
             border: none;
-            color: #ef4444;
             cursor: pointer;
             font-weight: 500;
             padding: 4px;
             border-radius: 4px;
         }
-        .delete-btn:hover {
-            color: #b91c1c;
-            background-color: #fee2e2;
-        }
+        .delete-btn { color: #ef4444; }
+        .delete-btn:hover { color: #b91c1c; background-color: #fee2e2; }
+        .edit-btn { color: #3b82f6; }
+        .edit-btn:hover { color: #1d4ed8; background-color: #dbeafe; }
+
         /* Custom Modal Styles */
         .modal-overlay {
             position: fixed;
@@ -148,6 +148,21 @@
         .modal-btn-cancel:hover {
             background-color: #d6d3d1;
         }
+        
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #print-area, #print-area * {
+                visibility: visible;
+            }
+            #print-area {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+            }
+        }
     </style>
 </head>
 <body class="antialiased">
@@ -164,10 +179,12 @@
             <button id="nav-quan1" class="nav-btn">Chi Tiết Quán 1</button>
             <button id="nav-quan2" class="nav-btn">Chi Tiết Quán 2</button>
             <button id="nav-suaXe" class="nav-btn">Chi Tiết Sửa Xe</button>
+            <button id="nav-parts" class="nav-btn">Quản Lý Phụ Tùng</button>
+            <button id="nav-quote" class="nav-btn">Báo Giá</button>
             <button id="nav-input" class="nav-btn">Nhập Liệu</button>
         </nav>
         
-        <div class="card p-4 mb-8 flex flex-wrap justify-center items-center gap-4">
+        <div id="filter-bar" class="card p-4 mb-8 flex-wrap justify-center items-center gap-4 hidden">
             <label for="month-filter" class="font-medium">Xem báo cáo theo tháng:</label>
             <input type="month" id="month-filter" class="form-input w-auto">
             <button id="filter-btn" class="filter-btn">Lọc</button>
@@ -175,6 +192,106 @@
         </div>
 
         <main>
+            <!-- Parts Management Section -->
+            <div id="parts-section" class="hidden">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-1">
+                        <div class="card p-6">
+                            <h2 class="text-2xl font-semibold text-gray-700 mb-4">Thêm Phụ Tùng Mới</h2>
+                            <form id="add-part-form" class="space-y-4">
+                                <div>
+                                    <label for="part-name" class="font-medium">Tên phụ tùng</label>
+                                    <input type="text" id="part-name" class="form-input mt-1" placeholder="VD: Lốp xe SH" required>
+                                </div>
+                                <div>
+                                    <label for="part-price" class="font-medium">Giá bán</label>
+                                    <input type="number" id="part-price" class="form-input mt-1" placeholder="VD: 700000" required min="0">
+                                </div>
+                                <button type="submit" class="submit-btn w-full">Thêm Phụ Tùng</button>
+                            </form>
+                        </div>
+                    </div>
+                    <div class="lg:col-span-2">
+                        <div class="card p-6">
+                            <h2 class="text-2xl font-semibold text-gray-700 mb-4">Danh Sách Phụ Tùng</h2>
+                            <div class="overflow-y-auto max-h-96">
+                                <table class="w-full text-left">
+                                    <thead class="bg-slate-100 sticky top-0">
+                                        <tr>
+                                            <th class="p-3">Tên Phụ Tùng</th>
+                                            <th class="p-3 text-right">Giá Bán</th>
+                                            <th class="p-3 text-center">Hành Động</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="parts-list-table">
+                                        <!-- Parts list will be generated here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Báo giá Section -->
+            <div id="quote-section" class="hidden">
+                <div class="card p-6">
+                    <h2 class="text-2xl font-semibold text-gray-700 text-center mb-6">Tạo Báo Giá Sửa Chữa Xe Máy</h2>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                        <div>
+                            <label for="quote-customer-name" class="font-medium">Tên khách hàng</label>
+                            <input type="text" id="quote-customer-name" class="form-input mt-1" placeholder="Nguyễn Văn A">
+                        </div>
+                        <div>
+                            <label for="quote-license-plate" class="font-medium">Biển số xe</label>
+                            <input type="text" id="quote-license-plate" class="form-input mt-1" placeholder="29-H1-12345">
+                        </div>
+                    </div>
+
+                    <h3 class="text-xl font-semibold mb-4">Các hạng mục sửa chữa</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left mb-4">
+                            <thead class="bg-slate-100">
+                                <tr>
+                                    <th class="p-3">Nội dung</th>
+                                    <th class="p-3 w-24 text-center">Số lượng</th>
+                                    <th class="p-3 w-40 text-right">Đơn giá</th>
+                                    <th class="p-3 w-40 text-right">Thành tiền</th>
+                                    <th class="p-3 w-16 text-center">Xoá</th>
+                                </tr>
+                            </thead>
+                            <tbody id="quote-items-table">
+                                <!-- Quote items will be added here by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <button id="add-quote-item-btn" class="secondary-btn mb-6">+ Thêm hạng mục</button>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                        <div>
+                            <label for="quote-notes" class="font-medium">Ghi chú thêm</label>
+                            <textarea id="quote-notes" rows="3" class="form-input mt-1" placeholder="Ghi chú thêm cho khách hàng..."></textarea>
+                        </div>
+                        <div class="space-y-3 text-right">
+                            <div class="flex justify-end items-center gap-4">
+                                <label for="quote-labor-cost" class="font-medium">Tiền công:</label>
+                                <input type="number" id="quote-labor-cost" class="form-input w-40 text-right" value="0" min="0">
+                            </div>
+                            <div class="flex justify-end items-center gap-4">
+                                <span class="font-bold text-lg">Tổng cộng:</span>
+                                <span id="quote-grand-total" class="font-bold text-xl text-amber-700">0 ₫</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="text-center mt-8">
+                        <button id="generate-quote-btn" class="action-btn text-lg px-8 py-3">Tạo & In Báo Giá</button>
+                    </div>
+                </div>
+            </div>
+
             <!-- Nhập Liệu Section -->
             <div id="input-section" class="hidden">
                  <div class="text-center mb-8">
@@ -263,12 +380,35 @@
             </div>
         </div>
     </div>
+    
+    <!-- Modal for editing parts -->
+    <div id="edit-part-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 class="text-xl font-semibold mb-4">Chỉnh Sửa Phụ Tùng</h3>
+            <form id="edit-part-form" class="space-y-4 text-left">
+                <input type="hidden" id="edit-part-id">
+                <div>
+                    <label for="edit-part-name" class="font-medium">Tên phụ tùng</label>
+                    <input type="text" id="edit-part-name" class="form-input mt-1" required>
+                </div>
+                <div>
+                    <label for="edit-part-price" class="font-medium">Giá bán</label>
+                    <input type="number" id="edit-part-price" class="form-input mt-1" required min="0">
+                </div>
+                <div id="modal-buttons" class="text-center pt-4">
+                     <button type="button" id="edit-part-cancel-btn" class="modal-btn modal-btn-cancel">Huỷ</button>
+                     <button type="submit" class="modal-btn modal-btn-confirm">Lưu Thay Đổi</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
 
     <!-- Firebase SDK -->
     <script type="module">
         // Import functions from the Firebase SDKs
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, onSnapshot, getDocs, writeBatch, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, getDocs, writeBatch, doc, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // =================================================================================
         // BƯỚC 4: DÁN FIREBASE CONFIG CỦA BẠN VÀO ĐÂY
@@ -299,7 +439,7 @@
         // --- GLOBAL VARIABLES & UTILITIES ---
         const formatCurrency = (value) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
         const today = new Date().toISOString().split('T')[0];
-        let fullData = { sales: [], costs: [] };
+        let fullData = { sales: [], costs: [], parts: [] };
         let currentFilter = null;
         const charts = {};
 
@@ -307,6 +447,7 @@
         const modal = document.getElementById('modal');
         const modalMessage = document.getElementById('modal-message');
         const modalButtons = document.getElementById('modal-buttons');
+        const editPartModal = document.getElementById('edit-part-modal');
 
         function showModal(message, onOk) {
             modalMessage.textContent = message;
@@ -338,30 +479,28 @@
         // --- DATA HANDLING WITH FIRESTORE ---
         const salesCol = collection(db, "sales");
         const costsCol = collection(db, "costs");
+        const partsCol = collection(db, "spare_parts");
 
-        // Listen for real-time updates on sales
         onSnapshot(salesCol, (snapshot) => {
-            fullData.sales = [];
-            snapshot.forEach(doc => {
-                fullData.sales.push({ id: doc.id, ...doc.data() });
-            });
-            updateDashboard();
+            fullData.sales = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            if(document.getElementById('overview-section')?.style.display !== 'none') updateDashboard();
         });
 
-        // Listen for real-time updates on costs
         onSnapshot(costsCol, (snapshot) => {
-            fullData.costs = [];
-            snapshot.forEach(doc => {
-                fullData.costs.push({ id: doc.id, ...doc.data() });
-            });
-            updateDashboard();
+            fullData.costs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            if(document.getElementById('overview-section')?.style.display !== 'none') updateDashboard();
+        });
+
+        onSnapshot(partsCol, (snapshot) => {
+            fullData.parts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            fullData.parts.sort((a, b) => a.name.localeCompare(b.name)); // Keep parts sorted
+            renderPartsTable();
+            updateAllQuoteItemSelects();
         });
 
         // --- UI & CHARTING LOGIC ---
         function destroyAllCharts() {
-            Object.values(charts).forEach(chart => {
-                if (chart && typeof chart.destroy === 'function') chart.destroy();
-            });
+            Object.values(charts).forEach(chart => chart?.destroy());
         }
         
         function updateDashboard() {
@@ -380,7 +519,6 @@
             }
 
             const displayContainer = document.getElementById('data-display-sections');
-            // Inject HTML structure if it's not there
             displayContainer.innerHTML = `
                 <div id="overview-section">
                     <div class="text-center mb-8"><h2 id="overview-title" class="text-2xl font-semibold text-gray-700"></h2></div>
@@ -483,7 +621,6 @@
             createStoreDetails('quan2', filteredData);
             createStoreDetails('suaXe', filteredData);
             
-            // Re-attach event listeners for search buttons inside the details view
             document.getElementById('suaXe-search-btn').addEventListener('click', () => updateDashboard());
             document.getElementById('suaXe-search-input').addEventListener('keyup', (e) => {
                 if (e.key === 'Enter') updateDashboard();
@@ -559,7 +696,6 @@
             salesTable.innerHTML = '';
             salesData.sort((a,b) => new Date(b.date) - new Date(a.date));
 
-            // Populate sales table with delete button
             salesData.forEach(s => {
                 const row = document.createElement('tr');
                 let cells = `
@@ -601,6 +737,8 @@
             quan1: () => document.getElementById('quan1-section'),
             quan2: () => document.getElementById('quan2-section'),
             suaXe: () => document.getElementById('suaXe-section'),
+            parts: () => document.getElementById('parts-section'),
+            quote: () => document.getElementById('quote-section'),
             input: () => document.getElementById('input-section'),
             display: () => document.getElementById('data-display-sections')
         };
@@ -609,22 +747,29 @@
             quan1: document.getElementById('nav-quan1'),
             quan2: document.getElementById('nav-quan2'),
             suaXe: document.getElementById('nav-suaXe'),
+            parts: document.getElementById('nav-parts'),
+            quote: document.getElementById('nav-quote'),
             input: document.getElementById('nav-input')
         };
+        const filterBar = document.getElementById('filter-bar');
 
         function showSection(sectionId) {
             Object.values(navButtons).forEach(button => button.classList.remove('active'));
             navButtons[sectionId].classList.add('active');
 
-            if (sectionId === 'input') {
-                sections.input().classList.remove('hidden');
-                sections.display().classList.add('hidden');
-            } else {
-                sections.input().classList.add('hidden');
-                sections.display().classList.remove('hidden');
+            const isDataSection = ['overview', 'quan1', 'quan2', 'suaXe'].includes(sectionId);
+            
+            filterBar.style.display = isDataSection ? 'flex' : 'none';
+            sections.display().style.display = isDataSection ? 'block' : 'none';
+            
+            sections.input().classList.toggle('hidden', sectionId !== 'input');
+            sections.quote().classList.toggle('hidden', sectionId !== 'quote');
+            sections.parts().classList.toggle('hidden', sectionId !== 'parts');
+
+            if (isDataSection) {
                 updateDashboard(); 
                 Object.keys(sections).forEach(key => {
-                    if (key !== 'input' && key !== 'display') {
+                    if (['overview', 'quan1', 'quan2', 'suaXe'].includes(key)) {
                         const sectionElement = sections[key]();
                         if (sectionElement) {
                            sectionElement.classList.toggle('hidden', key !== sectionId);
@@ -678,19 +823,18 @@
         });
         
         document.getElementById('clear-data-btn').addEventListener('click', () => {
-            showConfirmation('Bạn có chắc chắn muốn xoá TOÀN BỘ dữ liệu không? Hành động này không thể hoàn tác.', async (confirmed) => {
+            showConfirmation('Bạn có chắc chắn muốn xoá TOÀN BỘ dữ liệu kinh doanh không? (Phụ tùng sẽ không bị xoá)', async (confirmed) => {
                 if (confirmed) {
                     try {
                         const batch = writeBatch(db);
-                        const salesSnapshot = await getDocs(salesCol);
+                        const [salesSnapshot, costsSnapshot] = await Promise.all([getDocs(salesCol), getDocs(costsCol)]);
                         salesSnapshot.forEach(doc => batch.delete(doc.ref));
-                        const costsSnapshot = await getDocs(costsCol);
                         costsSnapshot.forEach(doc => batch.delete(doc.ref));
                         await batch.commit();
                         
                         currentFilter = null;
                         document.getElementById('month-filter').value = '';
-                        showModal('Đã xoá toàn bộ dữ liệu.');
+                        showModal('Đã xoá toàn bộ dữ liệu kinh doanh.');
                     } catch (error) {
                         console.error("Error deleting data: ", error);
                         showModal('Có lỗi xảy ra khi xoá dữ liệu.');
@@ -700,8 +844,7 @@
         });
         
         document.getElementById('filter-btn').addEventListener('click', () => {
-            const filterValue = document.getElementById('month-filter').value;
-            currentFilter = filterValue ? filterValue : null;
+            currentFilter = document.getElementById('month-filter').value || null;
             updateDashboard();
         });
 
@@ -711,20 +854,17 @@
             updateDashboard();
         });
         
-        // --- NEW: Function to delete a single entry ---
         async function deleteEntry(id, type) {
             const collectionName = type === 'sale' ? 'sales' : 'costs';
             try {
                 await deleteDoc(doc(db, collectionName, id));
                 showModal('Đã xoá mục thành công.');
-                // onSnapshot will automatically refresh the view
             } catch (error) {
                 console.error("Error deleting document: ", error);
                 showModal('Có lỗi xảy ra, không thể xoá mục này.');
             }
         }
 
-        // --- NEW: Event listener for delete buttons ---
         document.getElementById('data-display-sections').addEventListener('click', (e) => {
             if (e.target && e.target.classList.contains('delete-btn')) {
                 const id = e.target.dataset.id;
@@ -739,9 +879,268 @@
             }
         });
 
+        // --- PARTS MANAGEMENT LOGIC ---
+        const addPartForm = document.getElementById('add-part-form');
+        const partsListTable = document.getElementById('parts-list-table');
+        const editPartForm = document.getElementById('edit-part-form');
+
+        addPartForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const partName = document.getElementById('part-name').value;
+            const partPrice = parseFloat(document.getElementById('part-price').value);
+            try {
+                await addDoc(partsCol, { name: partName, price: partPrice });
+                showModal('Thêm phụ tùng thành công!');
+                addPartForm.reset();
+            } catch (error) {
+                showModal('Lỗi: ' + error.message);
+            }
+        });
+
+        function renderPartsTable() {
+            partsListTable.innerHTML = '';
+            fullData.parts.forEach(part => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="p-3">${part.name}</td>
+                    <td class="p-3 text-right font-medium">${formatCurrency(part.price)}</td>
+                    <td class="p-3 text-center">
+                        <button data-id="${part.id}" class="edit-btn">Sửa</button>
+                        <button data-id="${part.id}" class="delete-btn">Xoá</button>
+                    </td>
+                `;
+                partsListTable.appendChild(row);
+            });
+        }
+
+        partsListTable.addEventListener('click', (e) => {
+            const target = e.target;
+            const id = target.dataset.id;
+            if (!id) return;
+
+            if (target.classList.contains('delete-btn')) {
+                showConfirmation('Bạn có chắc muốn xoá phụ tùng này?', async (confirmed) => {
+                    if (confirmed) {
+                        await deleteDoc(doc(db, "spare_parts", id));
+                        showModal('Đã xoá phụ tùng.');
+                    }
+                });
+            } else if (target.classList.contains('edit-btn')) {
+                const part = fullData.parts.find(p => p.id === id);
+                document.getElementById('edit-part-id').value = id;
+                document.getElementById('edit-part-name').value = part.name;
+                document.getElementById('edit-part-price').value = part.price;
+                editPartModal.classList.add('visible');
+            }
+        });
+        
+        editPartForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('edit-part-id').value;
+            const name = document.getElementById('edit-part-name').value;
+            const price = parseFloat(document.getElementById('edit-part-price').value);
+            const partRef = doc(db, "spare_parts", id);
+            await updateDoc(partRef, { name, price });
+            editPartModal.classList.remove('visible');
+            showModal('Cập nhật thành công!');
+        });
+        
+        document.getElementById('edit-part-cancel-btn').addEventListener('click', () => {
+             editPartModal.classList.remove('visible');
+        });
+
+
+        // --- QUOTATION LOGIC ---
+        const addQuoteItemBtn = document.getElementById('add-quote-item-btn');
+        const quoteItemsTable = document.getElementById('quote-items-table');
+        const quoteLaborCost = document.getElementById('quote-labor-cost');
+        const generateQuoteBtn = document.getElementById('generate-quote-btn');
+
+        function populateQuoteItemSelect(selectElement) {
+             selectElement.innerHTML = '<option value="">-- Chọn phụ tùng --</option>';
+             fullData.parts.forEach(part => {
+                const option = document.createElement('option');
+                option.value = part.id;
+                option.textContent = part.name;
+                selectElement.appendChild(option);
+             });
+        }
+
+        function updateAllQuoteItemSelects() {
+            document.querySelectorAll('.quote-item-select').forEach(populateQuoteItemSelect);
+        }
+
+        function addQuoteItem() {
+            const row = document.createElement('tr');
+            row.className = 'quote-item-row';
+            row.innerHTML = `
+                <td class="p-1">
+                    <select class="form-input quote-item-select"></select>
+                </td>
+                <td class="p-1"><input type="number" class="form-input quote-item-qty text-center" value="1" min="1"></td>
+                <td class="p-1"><input type="number" class="form-input quote-item-price text-right" value="0" min="0"></td>
+                <td class="p-1 text-right font-medium quote-item-total">0 ₫</td>
+                <td class="p-1 text-center"><button class="delete-btn quote-delete-item">Xoá</button></td>
+            `;
+            const select = row.querySelector('.quote-item-select');
+            populateQuoteItemSelect(select);
+            quoteItemsTable.appendChild(row);
+        }
+
+        function updateQuoteTotals() {
+            let subtotal = 0;
+            document.querySelectorAll('.quote-item-row').forEach(row => {
+                const qty = parseFloat(row.querySelector('.quote-item-qty').value) || 0;
+                const price = parseFloat(row.querySelector('.quote-item-price').value) || 0;
+                const itemTotal = qty * price;
+                row.querySelector('.quote-item-total').textContent = formatCurrency(itemTotal);
+                subtotal += itemTotal;
+            });
+            const labor = parseFloat(quoteLaborCost.value) || 0;
+            const grandTotal = subtotal + labor;
+            document.getElementById('quote-grand-total').textContent = formatCurrency(grandTotal);
+        }
+
+        quoteItemsTable.addEventListener('input', (e) => {
+            if (e.target.classList.contains('quote-item-qty') || e.target.classList.contains('quote-item-price')) {
+                updateQuoteTotals();
+            }
+        });
+        
+        quoteItemsTable.addEventListener('change', (e) => {
+            if (e.target.classList.contains('quote-item-select')) {
+                const selectedId = e.target.value;
+                const part = fullData.parts.find(p => p.id === selectedId);
+                const row = e.target.closest('tr');
+                if (part) {
+                    row.querySelector('.quote-item-price').value = part.price;
+                }
+                updateQuoteTotals();
+            }
+        });
+
+        quoteItemsTable.addEventListener('click', (e) => {
+            if (e.target.classList.contains('quote-delete-item')) {
+                e.target.closest('tr').remove();
+                updateQuoteTotals();
+            }
+        });
+        
+        quoteLaborCost.addEventListener('input', updateQuoteTotals);
+        addQuoteItemBtn.addEventListener('click', addQuoteItem);
+        
+        generateQuoteBtn.addEventListener('click', () => {
+            const customerName = document.getElementById('quote-customer-name').value;
+            const licensePlate = document.getElementById('quote-license-plate').value;
+            const notes = document.getElementById('quote-notes').value;
+            const laborCost = parseFloat(quoteLaborCost.value) || 0;
+            
+            let itemsHtml = '';
+            let subtotal = 0;
+            document.querySelectorAll('.quote-item-row').forEach((row, index) => {
+                const select = row.querySelector('.quote-item-select');
+                const name = select.options[select.selectedIndex].text;
+                const qty = parseFloat(row.querySelector('.quote-item-qty').value) || 0;
+                const price = parseFloat(row.querySelector('.quote-item-price').value) || 0;
+                if (select.value && qty > 0) {
+                    const itemTotal = qty * price;
+                    subtotal += itemTotal;
+                    itemsHtml += `
+                        <tr>
+                            <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${index + 1}</td>
+                            <td style="padding: 8px; border: 1px solid #ddd;">${name}</td>
+                            <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${qty}</td>
+                            <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${formatCurrency(price)}</td>
+                            <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${formatCurrency(itemTotal)}</td>
+                        </tr>
+                    `;
+                }
+            });
+
+            const grandTotal = subtotal + laborCost;
+
+            const printContent = `
+                <html>
+                    <head>
+                        <title>Báo giá sửa chữa</title>
+                        <style>
+                            body { font-family: 'Be Vietnam Pro', sans-serif, Arial; color: #333; margin: 20px; }
+                            .container { max-width: 800px; margin: auto; border: 1px solid #eee; padding: 30px; }
+                            h1 { text-align: center; color: #d97706; }
+                            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                            th, td { padding: 12px; border: 1px solid #ddd; text-align: left; }
+                            th { background-color: #f8f8f8; }
+                            .text-right { text-align: right; }
+                            .total-row td { font-weight: bold; font-size: 1.1em; }
+                            .footer { margin-top: 40px; text-align: center; font-size: 0.9em; color: #777; }
+                            .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;}
+                        </style>
+                    </head>
+                    <body>
+                        <div class="container">
+                            <h1>BÁO GIÁ DỊCH VỤ SỬA CHỮA</h1>
+                            <div class="info-grid">
+                                <div>
+                                    <b>Cửa hàng sửa chữa xe máy Đức Long</b><br>
+                                    Địa chỉ: 313 Đà Nẵng, Ngô Quyền, Hải Phòng<br>
+                                    Điện thoại: 0916236863
+                                </div>
+                                <div style="text-align: right;">
+                                    <b>Ngày:</b> ${new Date().toLocaleDateString('vi-VN')}<br>
+                                    <b>Khách hàng:</b> ${customerName || 'Khách lẻ'}<br>
+                                    <b>Biển số xe:</b> ${licensePlate || 'N/A'}
+                                </div>
+                            </div>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th style="width: 5%; text-align: center;">STT</th>
+                                        <th>Nội dung</th>
+                                        <th style="width: 10%; text-align: center;">SL</th>
+                                        <th style="width: 20%;" class="text-right">Đơn giá</th>
+                                        <th style="width: 20%;" class="text-right">Thành tiền</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${itemsHtml}
+                                </tbody>
+                            </table>
+                            <table style="margin-top: 0; border-top: none;">
+                                <tbody>
+                                    <tr>
+                                        <td style="border: none;" colspan="3"></td>
+                                        <td style="border: 1px solid #ddd;" class="text-right"><b>Tiền công</b></td>
+                                        <td style="border: 1px solid #ddd;" class="text-right"><b>${formatCurrency(laborCost)}</b></td>
+                                    </tr>
+                                    <tr class="total-row">
+                                        <td style="border: none;" colspan="3"></td>
+                                        <td style="border: 1px solid #ddd; background-color: #f8f8f8;" class="text-right">TỔNG CỘNG</td>
+                                        <td style="border: 1px solid #ddd; background-color: #f8f8f8;" class="text-right">${formatCurrency(grandTotal)}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            ${notes ? `<div style="margin-top: 20px;"><b>Ghi chú:</b><br>${notes.replace(/\n/g, '<br>')}</div>` : ''}
+                            <div class="footer">
+                                <p>Cảm ơn quý khách đã tin tưởng và sử dụng dịch vụ của chúng tôi!</p>
+                                <p><i>Báo giá có hiệu lực trong vòng 07 ngày.</i></p>
+                            </div>
+                        </div>
+                    </body>
+                </html>
+            `;
+            
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(printContent);
+            printWindow.document.close();
+            printWindow.focus();
+            setTimeout(() => { printWindow.print(); }, 500);
+        });
+
         // --- INITIALIZATION ---
         document.getElementById('sale-date').value = today;
         document.getElementById('cost-date').value = today;
+        addQuoteItem(); // Add one initial item to the quote
+        updateQuoteTotals();
         showSection('overview');
 
     </script>

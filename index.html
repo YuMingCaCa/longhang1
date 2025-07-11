@@ -79,6 +79,19 @@
         .secondary-btn:hover {
              background-color: #475569;
         }
+        .delete-btn {
+            background: none;
+            border: none;
+            color: #ef4444;
+            cursor: pointer;
+            font-weight: 500;
+            padding: 4px;
+            border-radius: 4px;
+        }
+        .delete-btn:hover {
+            color: #b91c1c;
+            background-color: #fee2e2;
+        }
         /* Custom Modal Styles */
         .modal-overlay {
             position: fixed;
@@ -255,7 +268,7 @@
     <script type="module">
         // Import functions from the Firebase SDKs
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, onSnapshot, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, getDocs, writeBatch, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // =================================================================================
         // BƯỚC 4: DÁN FIREBASE CONFIG CỦA BẠN VÀO ĐÂY
@@ -271,14 +284,13 @@
         // =================================================================================
 
         // Initialize Firebase
-        if (!firebaseConfig.apiKey) {
+        if (!firebaseConfig.apiKey || firebaseConfig.apiKey === "YOUR_API_KEY") {
             document.body.innerHTML = `<div class="h-screen w-screen flex items-center justify-center bg-red-100 text-red-800 p-8">
                 <div class="text-center">
                     <h1 class="text-2xl font-bold mb-4">Lỗi Cấu Hình Firebase</h1>
                     <p>Vui lòng mở file HTML, tìm đến dòng có comment "BƯỚC 4: DÁN FIREBASE CONFIG CỦA BẠN VÀO ĐÂY" và làm theo hướng dẫn.</p>
                 </div>
             </div>`;
-            // FIX: Replaced illegal 'return' with 'throw new Error' to stop script execution correctly.
             throw new Error("Firebase config is missing. Script execution stopped.");
         }
         const app = initializeApp(firebaseConfig);
@@ -345,7 +357,7 @@
             updateDashboard();
         });
 
-        // --- UI & CHARTING LOGIC (Largely unchanged, but now reacts to Firestore data) ---
+        // --- UI & CHARTING LOGIC ---
         function destroyAllCharts() {
             Object.values(charts).forEach(chart => {
                 if (chart && typeof chart.destroy === 'function') chart.destroy();
@@ -390,7 +402,7 @@
                         <div class="card p-6 flex flex-col items-center justify-center text-center"><h3 class="text-lg font-medium text-slate-500">Lợi Nhuận</h3><p id="quan1-profit-card" class="text-3xl font-bold text-blue-600 mt-2">0 ₫</p></div>
                     </div>
                     <div class="card p-6 mb-8"><h3 class="text-xl font-semibold text-center mb-4">Xu Hướng Kinh Doanh</h3><div class="chart-container h-80 md:h-96 w-full max-w-4xl"><canvas id="quan1TrendChart"></canvas></div></div>
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6"><div class="card p-6"><h3 class="text-xl font-semibold mb-4">Thống Kê Bán Hàng</h3><div class="overflow-y-auto max-h-96"><table class="w-full text-left"><thead class="bg-slate-100 sticky top-0"><tr><th class="p-3">Ngày</th><th class="p-3">Nội dung</th><th class="p-3 text-right">SL</th><th class="p-3 text-right">Thành Tiền</th></tr></thead><tbody id="quan1-sales-table"></tbody></table></div></div><div class="card p-6"><h3 class="text-xl font-semibold mb-4">Thống Kê Chi Phí</h3><div class="overflow-y-auto max-h-96"><table class="w-full text-left"><thead class="bg-slate-100 sticky top-0"><tr><th class="p-3">Ngày</th><th class="p-3">Nội Dung</th><th class="p-3 text-right">Số Tiền</th></tr></thead><tbody id="quan1-costs-table"></tbody></table></div></div></div>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6"><div class="card p-6"><h3 class="text-xl font-semibold mb-4">Thống Kê Bán Hàng</h3><div class="overflow-y-auto max-h-96"><table class="w-full text-left"><thead class="bg-slate-100 sticky top-0"><tr><th class="p-3">Ngày</th><th class="p-3">Nội dung</th><th class="p-3 text-right">SL</th><th class="p-3 text-right">Thành Tiền</th><th class="p-3 text-right">Hành Động</th></tr></thead><tbody id="quan1-sales-table"></tbody></table></div></div><div class="card p-6"><h3 class="text-xl font-semibold mb-4">Thống Kê Chi Phí</h3><div class="overflow-y-auto max-h-96"><table class="w-full text-left"><thead class="bg-slate-100 sticky top-0"><tr><th class="p-3">Ngày</th><th class="p-3">Nội Dung</th><th class="p-3 text-right">Số Tiền</th><th class="p-3 text-right">Hành Động</th></tr></thead><tbody id="quan1-costs-table"></tbody></table></div></div></div>
                 </div>
                 <div id="quan2-section" class="hidden">
                     <div class="text-center mb-8"><h2 id="quan2-title" class="text-2xl font-semibold text-gray-700"></h2></div>
@@ -400,7 +412,7 @@
                         <div class="card p-6 flex flex-col items-center justify-center text-center"><h3 class="text-lg font-medium text-slate-500">Lợi Nhuận</h3><p id="quan2-profit-card" class="text-3xl font-bold text-blue-600 mt-2">0 ₫</p></div>
                     </div>
                     <div class="card p-6 mb-8"><h3 class="text-xl font-semibold text-center mb-4">Xu Hướng Kinh Doanh</h3><div class="chart-container h-80 md:h-96 w-full max-w-4xl"><canvas id="quan2TrendChart"></canvas></div></div>
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6"><div class="card p-6"><h3 class="text-xl font-semibold mb-4">Thống Kê Bán Hàng</h3><div class="overflow-y-auto max-h-96"><table class="w-full text-left"><thead class="bg-slate-100 sticky top-0"><tr><th class="p-3">Ngày</th><th class="p-3">Nội dung</th><th class="p-3 text-right">SL</th><th class="p-3 text-right">Thành Tiền</th></tr></thead><tbody id="quan2-sales-table"></tbody></table></div></div><div class="card p-6"><h3 class="text-xl font-semibold mb-4">Thống Kê Chi Phí</h3><div class="overflow-y-auto max-h-96"><table class="w-full text-left"><thead class="bg-slate-100 sticky top-0"><tr><th class="p-3">Ngày</th><th class="p-3">Nội Dung</th><th class="p-3 text-right">Số Tiền</th></tr></thead><tbody id="quan2-costs-table"></tbody></table></div></div></div>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6"><div class="card p-6"><h3 class="text-xl font-semibold mb-4">Thống Kê Bán Hàng</h3><div class="overflow-y-auto max-h-96"><table class="w-full text-left"><thead class="bg-slate-100 sticky top-0"><tr><th class="p-3">Ngày</th><th class="p-3">Nội dung</th><th class="p-3 text-right">SL</th><th class="p-3 text-right">Thành Tiền</th><th class="p-3 text-right">Hành Động</th></tr></thead><tbody id="quan2-sales-table"></tbody></table></div></div><div class="card p-6"><h3 class="text-xl font-semibold mb-4">Thống Kê Chi Phí</h3><div class="overflow-y-auto max-h-96"><table class="w-full text-left"><thead class="bg-slate-100 sticky top-0"><tr><th class="p-3">Ngày</th><th class="p-3">Nội Dung</th><th class="p-3 text-right">Số Tiền</th><th class="p-3 text-right">Hành Động</th></tr></thead><tbody id="quan2-costs-table"></tbody></table></div></div></div>
                 </div>
                 <div id="suaXe-section" class="hidden">
                     <div class="text-center mb-8"><h2 id="suaXe-title" class="text-2xl font-semibold text-gray-700"></h2></div>
@@ -417,9 +429,9 @@
                                 <input type="text" id="suaXe-search-input" class="form-input flex-grow" placeholder="Tìm theo biển số xe...">
                                 <button id="suaXe-search-btn" class="filter-btn">Tìm</button>
                             </div>
-                            <div class="overflow-y-auto max-h-80"><table class="w-full text-left"><thead class="bg-slate-100 sticky top-0"><tr><th class="p-3">Ngày</th><th class="p-3">Nội dung</th><th class="p-3 text-right">Thành Tiền</th></tr></thead><tbody id="suaXe-sales-table"></tbody></table></div>
+                            <div class="overflow-y-auto max-h-80"><table class="w-full text-left"><thead class="bg-slate-100 sticky top-0"><tr><th class="p-3">Ngày</th><th class="p-3">Nội dung</th><th class="p-3 text-right">Thành Tiền</th><th class="p-3 text-right">Hành Động</th></tr></thead><tbody id="suaXe-sales-table"></tbody></table></div>
                         </div>
-                        <div class="card p-6"><h3 class="text-xl font-semibold mb-4">Thống Kê Chi Phí</h3><div class="overflow-y-auto max-h-96"><table class="w-full text-left"><thead class="bg-slate-100 sticky top-0"><tr><th class="p-3">Ngày</th><th class="p-3">Nội Dung</th><th class="p-3 text-right">Số Tiền</th></tr></thead><tbody id="suaXe-costs-table"></tbody></table></div></div>
+                        <div class="card p-6"><h3 class="text-xl font-semibold mb-4">Thống Kê Chi Phí</h3><div class="overflow-y-auto max-h-96"><table class="w-full text-left"><thead class="bg-slate-100 sticky top-0"><tr><th class="p-3">Ngày</th><th class="p-3">Nội Dung</th><th class="p-3 text-right">Số Tiền</th><th class="p-3 text-right">Hành Động</th></tr></thead><tbody id="suaXe-costs-table"></tbody></table></div></div>
                     </div>
                 </div>
             `;
@@ -547,20 +559,39 @@
             salesTable.innerHTML = '';
             salesData.sort((a,b) => new Date(b.date) - new Date(a.date));
 
-            if (storeId === 'suaXe') {
-                salesData.forEach(s => {
-                    salesTable.innerHTML += `<tr><td class="p-3">${s.date}</td><td class="p-3">${s.name}</td><td class="p-3 text-right font-medium">${formatCurrency(s.qty * s.price)}</td></tr>`;
-                });
-            } else {
-                 salesData.forEach(s => {
-                    salesTable.innerHTML += `<tr><td class="p-3">${s.date}</td><td class="p-3">${s.name}</td><td class="p-3 text-right">${s.qty}</td><td class="p-3 text-right font-medium">${formatCurrency(s.qty * s.price)}</td></tr>`;
-                });
-            }
+            // Populate sales table with delete button
+            salesData.forEach(s => {
+                const row = document.createElement('tr');
+                let cells = `
+                    <td class="p-3">${s.date}</td>
+                    <td class="p-3">${s.name}</td>
+                `;
+                if (storeId !== 'suaXe') {
+                    cells += `<td class="p-3 text-right">${s.qty}</td>`;
+                }
+                cells += `
+                    <td class="p-3 text-right font-medium">${formatCurrency(s.qty * s.price)}</td>
+                    <td class="p-3 text-right">
+                        <button data-id="${s.id}" data-type="sale" class="delete-btn">Xoá</button>
+                    </td>
+                `;
+                row.innerHTML = cells;
+                salesTable.appendChild(row);
+            });
 
             const costsTable = document.getElementById(`${storeId}-costs-table`);
             costsTable.innerHTML = '';
             data.costs.filter(c => c.store === storeId).sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(c => {
-                costsTable.innerHTML += `<tr><td class="p-3">${c.date}</td><td class="p-3">${c.name}</td><td class="p-3 text-right font-medium">${formatCurrency(c.amount)}</td></tr>`;
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="p-3">${c.date}</td>
+                    <td class="p-3">${c.name}</td>
+                    <td class="p-3 text-right font-medium">${formatCurrency(c.amount)}</td>
+                    <td class="p-3 text-right">
+                        <button data-id="${c.id}" data-type="cost" class="delete-btn">Xoá</button>
+                    </td>
+                `;
+                costsTable.appendChild(row);
             });
         }
         
@@ -591,7 +622,6 @@
             } else {
                 sections.input().classList.add('hidden');
                 sections.display().classList.remove('hidden');
-                // Ensure the dashboard is up-to-date before showing the section
                 updateDashboard(); 
                 Object.keys(sections).forEach(key => {
                     if (key !== 'input' && key !== 'display') {
@@ -660,7 +690,6 @@
                         
                         currentFilter = null;
                         document.getElementById('month-filter').value = '';
-                        // onSnapshot will handle the UI update automatically
                         showModal('Đã xoá toàn bộ dữ liệu.');
                     } catch (error) {
                         console.error("Error deleting data: ", error);
@@ -682,6 +711,34 @@
             updateDashboard();
         });
         
+        // --- NEW: Function to delete a single entry ---
+        async function deleteEntry(id, type) {
+            const collectionName = type === 'sale' ? 'sales' : 'costs';
+            try {
+                await deleteDoc(doc(db, collectionName, id));
+                showModal('Đã xoá mục thành công.');
+                // onSnapshot will automatically refresh the view
+            } catch (error) {
+                console.error("Error deleting document: ", error);
+                showModal('Có lỗi xảy ra, không thể xoá mục này.');
+            }
+        }
+
+        // --- NEW: Event listener for delete buttons ---
+        document.getElementById('data-display-sections').addEventListener('click', (e) => {
+            if (e.target && e.target.classList.contains('delete-btn')) {
+                const id = e.target.dataset.id;
+                const type = e.target.dataset.type;
+                const typeText = type === 'sale' ? 'doanh thu' : 'chi phí';
+                
+                showConfirmation(`Bạn có chắc chắn muốn xoá mục ${typeText} này không?`, (confirmed) => {
+                    if (confirmed) {
+                        deleteEntry(id, type);
+                    }
+                });
+            }
+        });
+
         // --- INITIALIZATION ---
         document.getElementById('sale-date').value = today;
         document.getElementById('cost-date').value = today;
